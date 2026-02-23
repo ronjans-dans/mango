@@ -3,229 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Epic Website</title>
+<title>Neon Space Dodger</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Orbitron',sans-serif;
-}
-
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Orbitron',sans-serif;}
 body{
-    background: radial-gradient(circle at top, #050014, #000000);
+    background:radial-gradient(circle at top,#06001a,#000);
+    overflow:hidden;
     color:white;
-    overflow-x:hidden;
-}
-
-/* STARS */
-.stars{
-    position:fixed;
-    width:100%;
-    height:100%;
-    top:0;
-    left:0;
-    background:url('https://raw.githubusercontent.com/Kasper-John/space-stars/main/stars.png');
-    animation: moveStars 120s linear infinite;
-    opacity:0.25;
-    z-index:-1;
-}
-
-@keyframes moveStars{
-    from{background-position:0 0;}
-    to{background-position:-5000px 5000px;}
-}
-
-header{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
     text-align:center;
 }
 
 h1{
-    font-size:4rem;
+    margin-top:15px;
     background:linear-gradient(90deg,#00f7ff,#ff00ff);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
-    animation: glow 3s infinite alternate;
-}
-
-@keyframes glow{
-    from{text-shadow:0 0 10px #00f7ff;}
-    to{text-shadow:0 0 25px #ff00ff;}
-}
-
-p{
-    font-size:1.2rem;
-    margin-top:15px;
-    color:#ccc;
-}
-
-button{
-    margin-top:40px;
-    padding:15px 45px;
-    border:none;
-    border-radius:40px;
-    background:linear-gradient(90deg,#00f7ff,#ff00ff);
-    color:black;
-    font-size:1.1rem;
-    font-weight:700;
-    cursor:pointer;
-    transition:.3s;
-    box-shadow:0 0 15px rgba(0,255,255,0.6);
-}
-
-button:hover{
-    transform:scale(1.1);
-    box-shadow:0 0 35px rgba(255,0,255,0.9);
-}
-
-section{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:80px 20px;
-}
-
-.card{
-    background:rgba(255,255,255,0.06);
-    backdrop-filter:blur(10px);
-    border-radius:20px;
-    padding:50px;
-    max-width:900px;
-    box-shadow:0 0 30px rgba(0,255,255,0.15);
-}
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-    gap:25px;
-}
-
-.box{
-    background:rgba(255,255,255,0.08);
-    padding:30px;
-    border-radius:18px;
-    transition:.3s;
-}
-
-.box:hover{
-    transform:translateY(-10px) scale(1.05);
-    box-shadow:0 0 30px rgba(0,255,255,0.5);
-}
-
-footer{
-    text-align:center;
-    padding:40px;
-    color:#888;
-}
-
-.glow{
-    color:#00f7ff;
 }
 
 canvas{
-    position:fixed;
-    top:0;
-    left:0;
-    z-index:-2;
+    display:block;
+    margin:20px auto;
+    background:rgba(255,255,255,0.05);
+    border-radius:16px;
+    box-shadow:0 0 40px rgba(0,255,255,0.5);
 }
+
+#ui{
+    position:fixed;
+    top:15px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:30px;
+    font-size:18px;
+}
+
+button{
+    padding:12px 30px;
+    border:none;
+    border-radius:30px;
+    background:linear-gradient(90deg,#00f7ff,#ff00ff);
+    font-weight:700;
+    cursor:pointer;
+}
+
+#overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+}
+
+.hidden{display:none;}
 </style>
 </head>
 
 <body>
 
-<div class="stars"></div>
-<canvas id="particles"></canvas>
+<h1>🚀 Neon Space Dodger</h1>
 
-<header>
-    <h1>Mijn Epic Website</h1>
-    <p>Gebouwd met GitHub Pages — Next Level Web</p>
-    <button onclick="scrollToContent()">Start de Reis 🚀</button>
-</header>
+<div id="ui">
+    <div>Score: <span id="score">0</span></div>
+    <div>Highscore: <span id="high">0</span></div>
+</div>
 
-<section id="content">
-    <div class="card">
-        <h2 class="glow">🚀 Wat is dit?</h2>
-        <p>Dit is een futuristische website met animaties, parallax effecten, neon design en interactieve elementen. Volledig gemaakt met HTML, CSS & JavaScript.</p>
-        <br>
+<canvas id="game" width="420" height="640"></canvas>
 
-        <div class="grid">
-            <div class="box">
-                <h3>🌌 Design</h3>
-                <p>Glassmorphism, neon glow, space vibe.</p>
-            </div>
-            <div class="box">
-                <h3>⚡ Performance</h3>
-                <p>Snel, lichtgewicht, perfect voor GitHub Pages.</p>
-            </div>
-            <div class="box">
-                <h3>📱 Responsive</h3>
-                <p>Ziet er top uit op mobiel & desktop.</p>
-            </div>
-            <div class="box">
-                <h3>🛠 Uitbreidbaar</h3>
-                <p>Ideaal voor portfolio, game site of project pagina.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<footer>
-    ⚡ Powered by GitHub Pages — 2026
-</footer>
+<div id="overlay">
+    <h1>Neon Space Dodger</h1>
+    <p>Ontwijk de blokken. Hoe langer je leeft, hoe moeilijker!</p><br>
+    <button onclick="startGame()">START</button>
+</div>
 
 <script>
-function scrollToContent(){
-    document.getElementById('content').scrollIntoView({behavior:'smooth'});
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let player, obstacles, score, speed, playing=false;
+let highscore = localStorage.getItem("highscore") || 0;
+document.getElementById("high").textContent = highscore;
+
+function startGame(){
+    player = {x:canvas.width/2-20,y:canvas.height-80,w:40,h:40,speed:6};
+    obstacles=[];
+    score=0;
+    speed=3;
+    playing=true;
+    document.getElementById("overlay").classList.add("hidden");
+    loop();
 }
 
-/* PARTICLE BACKGROUND */
-const canvas = document.getElementById('particles');
-const ctx = canvas.getContext('2d');
-let w,h,particles=[];
+document.addEventListener("keydown",e=>{
+    if(e.key=="ArrowLeft") player.x-=player.speed;
+    if(e.key=="ArrowRight") player.x+=player.speed;
+});
 
-function resize(){
-    w=canvas.width=window.innerWidth;
-    h=canvas.height=window.innerHeight;
-}
-window.addEventListener('resize',resize);
-resize();
+canvas.addEventListener("touchmove",e=>{
+    let rect = canvas.getBoundingClientRect();
+    player.x = e.touches[0].clientX - rect.left - player.w/2;
+});
 
-for(let i=0;i<120;i++){
-    particles.push({
-        x:Math.random()*w,
-        y:Math.random()*h,
-        r:Math.random()*2+1,
-        dx:(Math.random()-.5)*0.3,
-        dy:(Math.random()-.5)*0.3
+function spawnObstacle(){
+    let size = 20 + Math.random()*40;
+    obstacles.push({
+        x:Math.random()*(canvas.width-size),
+        y:-size,
+        w:size,
+        h:size
     });
 }
 
-function animate(){
-    ctx.clearRect(0,0,w,h);
-    particles.forEach(p=>{
-        ctx.beginPath();
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-        ctx.fillStyle='rgba(0,255,255,0.7)';
-        ctx.fill();
-
-        p.x+=p.dx;
-        p.y+=p.dy;
-
-        if(p.x<0||p.x>w) p.dx*=-1;
-        if(p.y<0||p.y>h) p.dy*=-1;
-    });
-    requestAnimationFrame(animate);
+function drawPlayer(){
+    ctx.fillStyle="#00f7ff";
+    ctx.shadowBlur=20;
+    ctx.shadowColor="#00f7ff";
+    ctx.fillRect(player.x,player.y,player.w,player.h);
 }
-animate();
+
+function drawObstacles(){
+    ctx.fillStyle="#ff00ff";
+    ctx.shadowBlur=20;
+    ctx.shadowColor="#ff00ff";
+    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
+}
+
+function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawPlayer();
+    drawObstacles();
+
+    obstacles.forEach(o=>o.y+=speed);
+
+    obstacles = obstacles.filter(o=>o.y<canvas.height+50);
+
+    if(Math.random()<0.03) spawnObstacle();
+
+    obstacles.forEach(o=>{
+        if(player.x<o.x+o.w &&
+           player.x+player.w>o.x &&
+           player.y<o.y+o.h &&
+           player.y+player.h>o.y){
+            gameOver();
+        }
+    });
+
+    score++;
+    speed += 0.0005;
+
+    document.getElementById("score").textContent = score;
+}
+
+function loop(){
+    if(!playing) return;
+    update();
+    requestAnimationFrame(loop);
+}
+
+function gameOver(){
+    playing=false;
+    if(score>highscore){
+        highscore=score;
+        localStorage.setItem("highscore",highscore);
+    }
+    document.getElementById("high").textContent=highscore;
+    document.getElementById("overlay").classList.remove("hidden");
+}
 </script>
 
 </body>
