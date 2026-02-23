@@ -3,177 +3,165 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Neon Space Dodger</title>
+<title>Procedural City Generator</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Orbitron',sans-serif;}
 body{
-    background:radial-gradient(circle at top,#06001a,#000);
-    overflow:hidden;
+    background:radial-gradient(circle at top,#050014,#000);
     color:white;
+    overflow:hidden;
     text-align:center;
 }
-
 h1{
-    margin-top:15px;
+    margin:15px;
     background:linear-gradient(90deg,#00f7ff,#ff00ff);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
 }
-
 canvas{
     display:block;
-    margin:20px auto;
-    background:rgba(255,255,255,0.05);
-    border-radius:16px;
-    box-shadow:0 0 40px rgba(0,255,255,0.5);
+    margin:0 auto;
+    border-radius:15px;
+    box-shadow:0 0 40px rgba(0,255,255,.4);
+    background:#000;
 }
-
 #ui{
     position:fixed;
-    top:15px;
+    bottom:20px;
     left:50%;
     transform:translateX(-50%);
-    display:flex;
-    gap:30px;
-    font-size:18px;
 }
-
 button{
-    padding:12px 30px;
+    padding:14px 30px;
     border:none;
     border-radius:30px;
     background:linear-gradient(90deg,#00f7ff,#ff00ff);
+    font-size:16px;
     font-weight:700;
     cursor:pointer;
+    box-shadow:0 0 25px rgba(255,0,255,.6);
 }
-
-#overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.85);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-}
-
-.hidden{display:none;}
+button:hover{transform:scale(1.05);}
 </style>
 </head>
 
 <body>
 
-<h1>🚀 Neon Space Dodger</h1>
+<h1>🏙 Procedural City Generator</h1>
+<canvas id="city" width="1000" height="600"></canvas>
 
 <div id="ui">
-    <div>Score: <span id="score">0</span></div>
-    <div>Highscore: <span id="high">0</span></div>
-</div>
-
-<canvas id="game" width="420" height="640"></canvas>
-
-<div id="overlay">
-    <h1>Neon Space Dodger</h1>
-    <p>Ontwijk de blokken. Hoe langer je leeft, hoe moeilijker!</p><br>
-    <button onclick="startGame()">START</button>
+    <button onclick="generateCity()">Generate New City 🌆</button>
 </div>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("city");
 const ctx = canvas.getContext("2d");
 
-let player, obstacles, score, speed, playing=false;
-let highscore = localStorage.getItem("highscore") || 0;
-document.getElementById("high").textContent = highscore;
+let time = 0;
 
-function startGame(){
-    player = {x:canvas.width/2-20,y:canvas.height-80,w:40,h:40,speed:6};
-    obstacles=[];
-    score=0;
-    speed=3;
-    playing=true;
-    document.getElementById("overlay").classList.add("hidden");
-    loop();
-}
+function rand(min,max){return Math.random()*(max-min)+min}
 
-document.addEventListener("keydown",e=>{
-    if(e.key=="ArrowLeft") player.x-=player.speed;
-    if(e.key=="ArrowRight") player.x+=player.speed;
-});
-
-canvas.addEventListener("touchmove",e=>{
-    let rect = canvas.getBoundingClientRect();
-    player.x = e.touches[0].clientX - rect.left - player.w/2;
-});
-
-function spawnObstacle(){
-    let size = 20 + Math.random()*40;
-    obstacles.push({
-        x:Math.random()*(canvas.width-size),
-        y:-size,
-        w:size,
-        h:size
-    });
-}
-
-function drawPlayer(){
-    ctx.fillStyle="#00f7ff";
-    ctx.shadowBlur=20;
-    ctx.shadowColor="#00f7ff";
-    ctx.fillRect(player.x,player.y,player.w,player.h);
-}
-
-function drawObstacles(){
-    ctx.fillStyle="#ff00ff";
-    ctx.shadowBlur=20;
-    ctx.shadowColor="#ff00ff";
-    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
-}
-
-function update(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    drawPlayer();
-    drawObstacles();
-
-    obstacles.forEach(o=>o.y+=speed);
-
-    obstacles = obstacles.filter(o=>o.y<canvas.height+50);
-
-    if(Math.random()<0.03) spawnObstacle();
-
-    obstacles.forEach(o=>{
-        if(player.x<o.x+o.w &&
-           player.x+player.w>o.x &&
-           player.y<o.y+o.h &&
-           player.y+player.h>o.y){
-            gameOver();
-        }
-    });
-
-    score++;
-    speed += 0.0005;
-
-    document.getElementById("score").textContent = score;
-}
-
-function loop(){
-    if(!playing) return;
-    update();
-    requestAnimationFrame(loop);
-}
-
-function gameOver(){
-    playing=false;
-    if(score>highscore){
-        highscore=score;
-        localStorage.setItem("highscore",highscore);
+function drawSky(){
+    let grad = ctx.createLinearGradient(0,0,0,canvas.height);
+    if(time<0.5){
+        grad.addColorStop(0,"#001");
+        grad.addColorStop(1,"#112");
+    }else{
+        grad.addColorStop(0,"#0a0015");
+        grad.addColorStop(1,"#000");
     }
-    document.getElementById("high").textContent=highscore;
-    document.getElementById("overlay").classList.remove("hidden");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 }
+
+function drawStars(){
+    if(time<0.5) return;
+    for(let i=0;i<150;i++){
+        ctx.fillStyle="rgba(255,255,255,.7)";
+        ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height/2,2,2);
+    }
+}
+
+function drawMoon(){
+    if(time<0.5) return;
+    ctx.beginPath();
+    ctx.arc(100,100,40,0,Math.PI*2);
+    ctx.fillStyle="#eee";
+    ctx.shadowBlur=20;
+    ctx.shadowColor="#fff";
+    ctx.fill();
+    ctx.shadowBlur=0;
+}
+
+function drawSun(){
+    if(time>=0.5) return;
+    ctx.beginPath();
+    ctx.arc(100,100,45,0,Math.PI*2);
+    ctx.fillStyle="#ffcc00";
+    ctx.shadowBlur=25;
+    ctx.shadowColor="#ffaa00";
+    ctx.fill();
+    ctx.shadowBlur=0;
+}
+
+function drawRoad(y){
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,y,canvas.width,70);
+    ctx.strokeStyle="#555";
+    ctx.setLineDash([20,15]);
+    ctx.beginPath();
+    ctx.moveTo(0,y+35);
+    ctx.lineTo(canvas.width,y+35);
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function drawBuilding(x,w,h){
+    let base = time<0.5?"#222":"#080010";
+    ctx.fillStyle=base;
+    ctx.fillRect(x,canvas.height-h,w,h);
+
+    let rows = Math.floor(h/25);
+    let cols = Math.floor(w/20);
+    for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+            if(Math.random()>0.45){
+                ctx.fillStyle=time<0.5?"#444":"#00f7ff";
+                ctx.fillRect(x+5+c*20,canvas.height-h+5+r*25,12,16);
+            }
+        }
+    }
+}
+
+function generateCity(){
+    time = Math.random();
+
+    drawSky();
+    drawStars();
+    drawSun();
+    drawMoon();
+
+    drawRoad(canvas.height-80);
+
+    let layers = 3;
+    for(let l=0;l<layers;l++){
+        let depth = (l+1)/layers;
+        let yOffset = depth*120;
+        let x=0;
+        while(x<canvas.width){
+            let w = rand(60,160);
+            let h = rand(100,420)*depth;
+            drawBuilding(x,w,h);
+            x+=w+rand(10,40);
+        }
+    }
+}
+
+generateCity();
 </script>
 
 </body>
