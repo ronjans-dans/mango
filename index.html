@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Parking Master</title>
 
 <style>
@@ -12,6 +12,7 @@ body{
     color:white;
     text-align:center;
     overflow:hidden;
+    touch-action:none;
 }
 h1{
     margin:10px;
@@ -23,6 +24,7 @@ canvas{
     background:#0a0a0a;
     border-radius:16px;
     box-shadow:0 0 30px rgba(0,255,255,.4);
+    touch-action:none;
 }
 #ui{
     position:fixed;
@@ -32,6 +34,7 @@ canvas{
     justify-content:center;
     gap:25px;
     font-size:18px;
+    z-index:5;
 }
 #controls{
     position:fixed;
@@ -40,6 +43,7 @@ canvas{
     display:flex;
     justify-content:center;
     gap:15px;
+    z-index:5;
 }
 button{
     padding:15px 25px;
@@ -52,12 +56,13 @@ button{
 #msg{
     position:fixed;
     inset:0;
-    background:rgba(0,0,0,.9);
+    background:rgba(0,0,0,.92);
     display:flex;
     align-items:center;
     justify-content:center;
     flex-direction:column;
     font-size:26px;
+    z-index:10;
 }
 .hidden{display:none;}
 </style>
@@ -76,15 +81,15 @@ button{
 <canvas id="game" width="420" height="720"></canvas>
 
 <div id="controls">
-    <button ontouchstart="keys.left=true" ontouchend="keys.left=false">⬅️</button>
-    <button ontouchstart="keys.up=true" ontouchend="keys.up=false">⬆️</button>
-    <button ontouchstart="keys.down=true" ontouchend="keys.down=false">⬇️</button>
-    <button ontouchstart="keys.right=true" ontouchend="keys.right=false">➡️</button>
+    <button ontouchstart="keys.left=true" ontouchend="keys.left=false" onmousedown="keys.left=true" onmouseup="keys.left=false">⬅️</button>
+    <button ontouchstart="keys.up=true" ontouchend="keys.up=false" onmousedown="keys.up=true" onmouseup="keys.up=false">⬆️</button>
+    <button ontouchstart="keys.down=true" ontouchend="keys.down=false" onmousedown="keys.down=true" onmouseup="keys.down=false">⬇️</button>
+    <button ontouchstart="keys.right=true" ontouchend="keys.right=false" onmousedown="keys.right=true" onmouseup="keys.right=false">➡️</button>
 </div>
 
 <div id="msg" class="hidden">
     <div id="text"></div><br>
-    <button onclick="next()">Volgende</button>
+    <button onclick="nextLevel()">DOORGAAN</button>
 </div>
 
 <script>
@@ -115,8 +120,8 @@ function start(){
     let count=2+level;
     for(let i=0;i<count;i++){
         obstacles.push({
-            x:Math.random()*320+40,
-            y:Math.random()*400+150,
+            x:Math.random()*300+50,
+            y:Math.random()*350+200,
             w:60,
             h:80
         });
@@ -126,15 +131,15 @@ function start(){
     for(let i=0;i<tcount;i++){
         traffic.push({
             x:Math.random()*400,
-            y:Math.random()*600,
+            y:Math.random()*500,
             s:1+Math.random()*1.5,
             dir:Math.random()<0.5?-1:1
         });
     }
 
     parking={
-        x:Math.random()*280+60,
-        y:30,
+        x:Math.random()*260+80,
+        y:40,
         w:80,
         h:60
     };
@@ -157,8 +162,8 @@ function drawCar(){
 function update(){
     if(!playing) return;
 
-    if(keys.up) speed+=0.08;
-    if(keys.down) speed-=0.06;
+    if(keys.up) speed+=0.09;
+    if(keys.down) speed-=0.07;
     speed*=0.97;
     speed=Math.max(Math.min(speed,4),-2);
 
@@ -173,7 +178,7 @@ function update(){
 
     traffic.forEach(t=>{
         t.x+=t.s*t.dir;
-        if(t.x<0||t.x>c.width) t.dir*=-1;
+        if(t.x<0||t.x>c.width-40) t.dir*=-1;
     });
 
     draw();
@@ -208,8 +213,8 @@ function collisions(){
         if(hit(box,{x:t.x,y:t.y,w:40,h:20})) return lose();
     }
 
-    if(box.x>parking.x&&box.x+box.w<parking.x+parking.w &&
-       box.y>parking.y&&box.y+box.h<parking.y+parking.h &&
+    if(box.x>parking.x && box.x+box.w<parking.x+parking.w &&
+       box.y>parking.y && box.y+box.h<parking.y+parking.h &&
        Math.abs(speed)<0.4){
         win();
     }
@@ -221,7 +226,7 @@ function hit(a,b){
 
 function win(){
     playing=false;
-    score+=level*100;
+    score+=level*150;
     document.getElementById("score").textContent=score;
     if(score>highscore){
         highscore=score;
@@ -241,12 +246,11 @@ function show(t){
     document.getElementById("msg").classList.remove("hidden");
 }
 
-function next(){
+function nextLevel(){
     document.getElementById("msg").classList.add("hidden");
-    if(playing===false){
-        level++;
-        start();
-    }
+    level++;
+    start();
+    update();
 }
 
 start();
