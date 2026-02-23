@@ -3,165 +3,204 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Procedural City Generator</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<title>Parking Challenge</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Orbitron',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui;}
 body{
-    background:radial-gradient(circle at top,#050014,#000);
+    background:radial-gradient(circle,#020024,#000);
     color:white;
-    overflow:hidden;
     text-align:center;
+    overflow:hidden;
 }
+
 h1{
-    margin:15px;
+    margin:10px;
     background:linear-gradient(90deg,#00f7ff,#ff00ff);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
 }
+
 canvas{
-    display:block;
-    margin:0 auto;
-    border-radius:15px;
-    box-shadow:0 0 40px rgba(0,255,255,.4);
-    background:#000;
+    background:#111;
+    border-radius:16px;
+    box-shadow:0 0 30px rgba(0,255,255,.4);
 }
+
 #ui{
     position:fixed;
-    bottom:20px;
-    left:50%;
-    transform:translateX(-50%);
+    bottom:15px;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    gap:15px;
 }
+
 button{
-    padding:14px 30px;
+    padding:15px 25px;
     border:none;
-    border-radius:30px;
+    border-radius:12px;
     background:linear-gradient(90deg,#00f7ff,#ff00ff);
-    font-size:16px;
+    font-size:18px;
     font-weight:700;
-    cursor:pointer;
-    box-shadow:0 0 25px rgba(255,0,255,.6);
 }
-button:hover{transform:scale(1.05);}
+
+#msg{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    font-size:28px;
+}
+.hidden{display:none;}
 </style>
 </head>
 
 <body>
 
-<h1>🏙 Procedural City Generator</h1>
-<canvas id="city" width="1000" height="600"></canvas>
+<h1>🚗 Parking Challenge</h1>
+<canvas id="game" width="420" height="720"></canvas>
 
 <div id="ui">
-    <button onclick="generateCity()">Generate New City 🌆</button>
+    <button ontouchstart="keys.left=true" ontouchend="keys.left=false">⬅️</button>
+    <button ontouchstart="keys.up=true" ontouchend="keys.up=false">⬆️</button>
+    <button ontouchstart="keys.down=true" ontouchend="keys.down=false">⬇️</button>
+    <button ontouchstart="keys.right=true" ontouchend="keys.right=false">➡️</button>
+</div>
+
+<div id="msg" class="hidden">
+    <div id="text"></div><br>
+    <button onclick="reset()">Opnieuw</button>
 </div>
 
 <script>
-const canvas = document.getElementById("city");
-const ctx = canvas.getContext("2d");
+const c = document.getElementById("game");
+const ctx = c.getContext("2d");
 
-let time = 0;
+let car, obstacles, parking, speed = 0, angle = 0, playing=true;
 
-function rand(min,max){return Math.random()*(max-min)+min}
+const keys = {left:false,right:false,up:false,down:false};
 
-function drawSky(){
-    let grad = ctx.createLinearGradient(0,0,0,canvas.height);
-    if(time<0.5){
-        grad.addColorStop(0,"#001");
-        grad.addColorStop(1,"#112");
-    }else{
-        grad.addColorStop(0,"#0a0015");
-        grad.addColorStop(1,"#000");
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+document.addEventListener("keydown",e=>{
+    if(e.key=="ArrowLeft") keys.left=true;
+    if(e.key=="ArrowRight") keys.right=true;
+    if(e.key=="ArrowUp") keys.up=true;
+    if(e.key=="ArrowDown") keys.down=true;
+});
+
+document.addEventListener("keyup",e=>{
+    if(e.key=="ArrowLeft") keys.left=false;
+    if(e.key=="ArrowRight") keys.right=false;
+    if(e.key=="ArrowUp") keys.up=false;
+    if(e.key=="ArrowDown") keys.down=false;
+});
+
+function reset(){
+    car={x:200,y:600,w:30,h:50};
+    speed=0;
+    angle=0;
+    obstacles=[
+        {x:80,y:300,w:60,h:120},
+        {x:280,y:260,w:60,h:150},
+        {x:130,y:100,w:160,h:80}
+    ];
+    parking={x:150,y:30,w:120,h:70};
+    playing=true;
+    document.getElementById("msg").classList.add("hidden");
+}
+reset();
+
+function drawCar(){
+    ctx.save();
+    ctx.translate(car.x,car.y);
+    ctx.rotate(angle);
+    ctx.fillStyle="#00f7ff";
+    ctx.fillRect(-car.w/2,-car.h/2,car.w,car.h);
+    ctx.restore();
 }
 
-function drawStars(){
-    if(time<0.5) return;
-    for(let i=0;i<150;i++){
-        ctx.fillStyle="rgba(255,255,255,.7)";
-        ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height/2,2,2);
-    }
+function update(){
+    if(!playing) return;
+
+    if(keys.up) speed+=0.05;
+    if(keys.down) speed-=0.05;
+    speed*=0.98;
+    speed=Math.max(Math.min(speed,4),-2);
+
+    if(keys.left) angle-=0.05;
+    if(keys.right) angle+=0.05;
+
+    car.x += Math.sin(angle)*speed;
+    car.y -= Math.cos(angle)*speed;
+
+    car.x=Math.max(15,Math.min(c.width-15,car.x));
+    car.y=Math.max(25,Math.min(c.height-25,car.y));
+
+    checkCollision();
+    draw();
+    requestAnimationFrame(update);
 }
 
-function drawMoon(){
-    if(time<0.5) return;
-    ctx.beginPath();
-    ctx.arc(100,100,40,0,Math.PI*2);
-    ctx.fillStyle="#eee";
-    ctx.shadowBlur=20;
-    ctx.shadowColor="#fff";
-    ctx.fill();
-    ctx.shadowBlur=0;
+function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+
+    ctx.fillStyle="#0a0a0a";
+    ctx.fillRect(0,0,c.width,c.height);
+
+    ctx.strokeStyle="#00f7ff";
+    ctx.strokeRect(parking.x,parking.y,parking.w,parking.h);
+    ctx.fillStyle="rgba(0,255,255,.1)";
+    ctx.fillRect(parking.x,parking.y,parking.w,parking.h);
+
+    ctx.fillStyle="#ff00ff";
+    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
+
+    drawCar();
 }
 
-function drawSun(){
-    if(time>=0.5) return;
-    ctx.beginPath();
-    ctx.arc(100,100,45,0,Math.PI*2);
-    ctx.fillStyle="#ffcc00";
-    ctx.shadowBlur=25;
-    ctx.shadowColor="#ffaa00";
-    ctx.fill();
-    ctx.shadowBlur=0;
+function rectsOverlap(a,b){
+    return a.x<a.x+a.w &&
+           a.x+a.w>b.x &&
+           a.y<a.y+a.h &&
+           a.y+a.h>b.y;
 }
 
-function drawRoad(y){
-    ctx.fillStyle="#111";
-    ctx.fillRect(0,y,canvas.width,70);
-    ctx.strokeStyle="#555";
-    ctx.setLineDash([20,15]);
-    ctx.beginPath();
-    ctx.moveTo(0,y+35);
-    ctx.lineTo(canvas.width,y+35);
-    ctx.stroke();
-    ctx.setLineDash([]);
-}
+function checkCollision(){
+    let box={x:car.x-car.w/2,y:car.y-car.h/2,w:car.w,h:car.h};
 
-function drawBuilding(x,w,h){
-    let base = time<0.5?"#222":"#080010";
-    ctx.fillStyle=base;
-    ctx.fillRect(x,canvas.height-h,w,h);
-
-    let rows = Math.floor(h/25);
-    let cols = Math.floor(w/20);
-    for(let r=0;r<rows;r++){
-        for(let c=0;c<cols;c++){
-            if(Math.random()>0.45){
-                ctx.fillStyle=time<0.5?"#444":"#00f7ff";
-                ctx.fillRect(x+5+c*20,canvas.height-h+5+r*25,12,16);
-            }
+    for(let o of obstacles){
+        if(box.x<o.x+o.w && box.x+box.w>o.x &&
+           box.y<o.y+o.h && box.y+box.h>o.y){
+            lose();
         }
     }
-}
 
-function generateCity(){
-    time = Math.random();
-
-    drawSky();
-    drawStars();
-    drawSun();
-    drawMoon();
-
-    drawRoad(canvas.height-80);
-
-    let layers = 3;
-    for(let l=0;l<layers;l++){
-        let depth = (l+1)/layers;
-        let yOffset = depth*120;
-        let x=0;
-        while(x<canvas.width){
-            let w = rand(60,160);
-            let h = rand(100,420)*depth;
-            drawBuilding(x,w,h);
-            x+=w+rand(10,40);
-        }
+    if(box.x>parking.x && box.x+box.w<parking.x+parking.w &&
+       box.y>parking.y && box.y+box.h<parking.y+parking.h &&
+       Math.abs(speed)<0.5){
+        win();
     }
 }
 
-generateCity();
+function win(){
+    playing=false;
+    show("PERFECT GEPAKKEERD 🅿️");
+}
+
+function lose(){
+    playing=false;
+    show("BOTSING 💥");
+}
+
+function show(t){
+    document.getElementById("text").textContent=t;
+    document.getElementById("msg").classList.remove("hidden");
+}
+
+update();
 </script>
 
 </body>
