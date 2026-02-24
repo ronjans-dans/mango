@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Parking Master</title>
+<title>Parking Master FIXED</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui;}
@@ -12,30 +12,31 @@ body{
     color:white;
     text-align:center;
     overflow:hidden;
-    touch-action:none;
 }
+
 h1{
     margin:10px;
     background:linear-gradient(90deg,#00f7ff,#ff00ff);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
 }
+
 canvas{
     background:#0a0a0a;
     border-radius:16px;
     box-shadow:0 0 30px rgba(0,255,255,.4);
-    touch-action:none;
 }
+
 #ui{
     position:fixed;
     top:10px;
     width:100%;
     display:flex;
     justify-content:center;
-    gap:25px;
-    font-size:18px;
+    gap:20px;
     z-index:5;
 }
+
 #controls{
     position:fixed;
     bottom:10px;
@@ -45,6 +46,7 @@ canvas{
     gap:15px;
     z-index:5;
 }
+
 button{
     padding:15px 25px;
     border:none;
@@ -53,18 +55,28 @@ button{
     font-size:18px;
     font-weight:700;
 }
-#msg{
+
+#overlay{
     position:fixed;
     inset:0;
-    background:rgba(0,0,0,.92);
+    background:rgba(0,0,0,.95);
     display:flex;
     align-items:center;
     justify-content:center;
     flex-direction:column;
     font-size:26px;
-    z-index:10;
+    z-index:20;
+    visibility:hidden;
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
 }
-.hidden{display:none;}
+
+#overlay.show{
+    visibility:visible;
+    opacity:1;
+    pointer-events:auto;
+}
 </style>
 </head>
 
@@ -81,23 +93,25 @@ button{
 <canvas id="game" width="420" height="720"></canvas>
 
 <div id="controls">
-    <button ontouchstart="keys.left=true" ontouchend="keys.left=false" onmousedown="keys.left=true" onmouseup="keys.left=false">⬅️</button>
-    <button ontouchstart="keys.up=true" ontouchend="keys.up=false" onmousedown="keys.up=true" onmouseup="keys.up=false">⬆️</button>
-    <button ontouchstart="keys.down=true" ontouchend="keys.down=false" onmousedown="keys.down=true" onmouseup="keys.down=false">⬇️</button>
-    <button ontouchstart="keys.right=true" ontouchend="keys.right=false" onmousedown="keys.right=true" onmouseup="keys.right=false">➡️</button>
+    <button onmousedown="keys.left=true" onmouseup="keys.left=false" ontouchstart="keys.left=true" ontouchend="keys.left=false">⬅️</button>
+    <button onmousedown="keys.up=true" onmouseup="keys.up=false" ontouchstart="keys.up=true" ontouchend="keys.up=false">⬆️</button>
+    <button onmousedown="keys.down=true" onmouseup="keys.down=false" ontouchstart="keys.down=true" ontouchend="keys.down=false">⬇️</button>
+    <button onmousedown="keys.right=true" onmouseup="keys.right=false" ontouchstart="keys.right=true" ontouchend="keys.right=false">➡️</button>
 </div>
 
-<div id="msg" class="hidden">
-    <div id="text"></div><br>
-    <button onclick="nextLevel()">DOORGAAN</button>
+<div id="overlay">
+    <div id="msg"></div><br>
+    <button onclick="next()">VOLGENDE</button>
 </div>
 
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
+const overlay = document.getElementById("overlay");
 
-let car, obstacles, parking, traffic, speed=0, angle=0;
-let playing=true, level=1, score=0;
+let car, obstacles, parking, traffic;
+let speed=0, angle=0, playing=true;
+let level=1, score=0;
 let highscore=localStorage.getItem("parking_high")||0;
 
 document.getElementById("high").textContent=highscore;
@@ -117,35 +131,28 @@ function start(){
     obstacles=[];
     traffic=[];
 
-    let count=2+level;
-    for(let i=0;i<count;i++){
+    for(let i=0;i<2+level;i++){
         obstacles.push({
             x:Math.random()*300+50,
             y:Math.random()*350+200,
-            w:60,
-            h:80
+            w:60,h:80
         });
     }
 
-    let tcount=Math.min(level,6);
-    for(let i=0;i<tcount;i++){
+    for(let i=0;i<Math.min(level,5);i++){
         traffic.push({
-            x:Math.random()*400,
-            y:Math.random()*500,
+            x:Math.random()*380,
+            y:Math.random()*550,
             s:1+Math.random()*1.5,
             dir:Math.random()<0.5?-1:1
         });
     }
 
-    parking={
-        x:Math.random()*260+80,
-        y:40,
-        w:80,
-        h:60
-    };
+    parking={x:Math.random()*260+80,y:40,w:80,h:60};
 
     playing=true;
     document.getElementById("lvl").textContent=level;
+    overlay.classList.remove("show");
 }
 
 function drawCar(){
@@ -153,8 +160,6 @@ function drawCar(){
     ctx.translate(car.x,car.y);
     ctx.rotate(angle);
     ctx.fillStyle="#00f7ff";
-    ctx.shadowBlur=15;
-    ctx.shadowColor="#00f7ff";
     ctx.fillRect(-car.w/2,-car.h/2,car.w,car.h);
     ctx.restore();
 }
@@ -203,25 +208,21 @@ function draw(){
     drawCar();
 }
 
+function hit(a,b){
+    return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
 function collisions(){
     let box={x:car.x-car.w/2,y:car.y-car.h/2,w:car.w,h:car.h};
 
-    for(let o of obstacles){
-        if(hit(box,o)) return lose();
-    }
-    for(let t of traffic){
-        if(hit(box,{x:t.x,y:t.y,w:40,h:20})) return lose();
-    }
+    for(let o of obstacles) if(hit(box,o)) return lose();
+    for(let t of traffic) if(hit(box,{x:t.x,y:t.y,w:40,h:20})) return lose();
 
     if(box.x>parking.x && box.x+box.w<parking.x+parking.w &&
        box.y>parking.y && box.y+box.h<parking.y+parking.h &&
        Math.abs(speed)<0.4){
         win();
     }
-}
-
-function hit(a,b){
-    return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
 }
 
 function win(){
@@ -242,12 +243,11 @@ function lose(){
 }
 
 function show(t){
-    document.getElementById("text").textContent=t;
-    document.getElementById("msg").classList.remove("hidden");
+    document.getElementById("msg").textContent=t;
+    overlay.classList.add("show");
 }
 
-function nextLevel(){
-    document.getElementById("msg").classList.add("hidden");
+function next(){
     level++;
     start();
     update();
