@@ -3,121 +3,74 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Parking Master FIXED</title>
+<title>Night Drive Simulator</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
 body{
-    background:radial-gradient(circle,#020024,#000);
-    color:white;
-    text-align:center;
+    background:radial-gradient(circle at top,#02050a,#000);
     overflow:hidden;
+    color:white;
 }
-
-h1{
-    margin:10px;
-    background:linear-gradient(90deg,#00f7ff,#ff00ff);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-}
-
 canvas{
-    background:#0a0a0a;
-    border-radius:16px;
-    box-shadow:0 0 30px rgba(0,255,255,.4);
+    display:block;
+    margin:0 auto;
 }
-
 #ui{
     position:fixed;
-    top:10px;
-    width:100%;
-    display:flex;
-    justify-content:center;
-    gap:20px;
-    z-index:5;
-}
-
-#controls{
-    position:fixed;
-    bottom:10px;
+    bottom:15px;
     width:100%;
     display:flex;
     justify-content:center;
     gap:15px;
-    z-index:5;
+    z-index:10;
 }
-
 button{
-    padding:15px 25px;
+    padding:14px 20px;
     border:none;
     border-radius:12px;
-    background:linear-gradient(90deg,#00f7ff,#ff00ff);
+    background:rgba(0,255,255,.15);
+    color:white;
     font-size:18px;
-    font-weight:700;
+    backdrop-filter:blur(6px);
 }
-
-#overlay{
+#hud{
     position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.95);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    font-size:26px;
-    z-index:20;
-    visibility:hidden;
-    opacity:0;
-    transition:.25s;
-    pointer-events:none;
-}
-
-#overlay.show{
-    visibility:visible;
-    opacity:1;
-    pointer-events:auto;
+    top:10px;
+    width:100%;
+    text-align:center;
+    font-size:18px;
+    letter-spacing:2px;
+    color:#8ff;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🚗 Parking Master</h1>
+<div id="hud">🌧 NIGHT DRIVE SIMULATOR</div>
+<canvas id="game"></canvas>
 
 <div id="ui">
-    <div>Level: <span id="lvl">1</span></div>
-    <div>Score: <span id="score">0</span></div>
-    <div>Highscore: <span id="high">0</span></div>
-</div>
-
-<canvas id="game" width="420" height="720"></canvas>
-
-<div id="controls">
-    <button onmousedown="keys.left=true" onmouseup="keys.left=false" ontouchstart="keys.left=true" ontouchend="keys.left=false">⬅️</button>
-    <button onmousedown="keys.up=true" onmouseup="keys.up=false" ontouchstart="keys.up=true" ontouchend="keys.up=false">⬆️</button>
-    <button onmousedown="keys.down=true" onmouseup="keys.down=false" ontouchstart="keys.down=true" ontouchend="keys.down=false">⬇️</button>
-    <button onmousedown="keys.right=true" onmouseup="keys.right=false" ontouchstart="keys.right=true" ontouchend="keys.right=false">➡️</button>
-</div>
-
-<div id="overlay">
-    <div id="msg"></div><br>
-    <button onclick="next()">VOLGENDE</button>
+    <button ontouchstart="keys.left=true" ontouchend="keys.left=false">⬅</button>
+    <button ontouchstart="keys.up=true" ontouchend="keys.up=false">⬆</button>
+    <button ontouchstart="keys.down=true" ontouchend="keys.down=false">⬇</button>
+    <button ontouchstart="keys.right=true" ontouchend="keys.right=false">➡</button>
 </div>
 
 <script>
 const c = document.getElementById("game");
 const ctx = c.getContext("2d");
-const overlay = document.getElementById("overlay");
 
-let car, obstacles, parking, traffic;
-let speed=0, angle=0, playing=true;
-let level=1, score=0;
-let highscore=localStorage.getItem("parking_high")||0;
-
-document.getElementById("high").textContent=highscore;
+let W,H;
+function resize(){
+    W=c.width=window.innerWidth;
+    H=c.height=window.innerHeight;
+}
+window.addEventListener("resize",resize);
+resize();
 
 const keys={left:false,right:false,up:false,down:false};
-
 document.addEventListener("keydown",e=>{
     if(e.key.includes("Arrow")) keys[e.key.replace("Arrow","").toLowerCase()]=true;
 });
@@ -125,135 +78,112 @@ document.addEventListener("keyup",e=>{
     if(e.key.includes("Arrow")) keys[e.key.replace("Arrow","").toLowerCase()]=false;
 });
 
-function start(){
-    car={x:210,y:650,w:28,h:46};
-    speed=0; angle=0;
-    obstacles=[];
-    traffic=[];
+let car={x:0,y:0,angle:0,speed:0};
 
-    for(let i=0;i<2+level;i++){
-        obstacles.push({
-            x:Math.random()*300+50,
-            y:Math.random()*350+200,
-            w:60,h:80
-        });
+let roadOffset=0;
+let rain=[];
+
+for(let i=0;i<400;i++){
+    rain.push({
+        x:Math.random()*W,
+        y:Math.random()*H,
+        s:4+Math.random()*6,
+        l:10+Math.random()*15
+    });
+}
+
+function drawSky(){
+    let g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,"#02060d");
+    g.addColorStop(1,"#000");
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,W,H);
+}
+
+function drawRoad(){
+    let center=W/2;
+    ctx.fillStyle="#080b10";
+    ctx.beginPath();
+    ctx.moveTo(center-200,H);
+    ctx.lineTo(center+200,H);
+    ctx.lineTo(center+60,0);
+    ctx.lineTo(center-60,0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle="rgba(255,255,255,.3)";
+    ctx.setLineDash([40,40]);
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(center,0);
+    ctx.lineTo(center,H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function drawBuildings(){
+    for(let i=0;i<50;i++){
+        let x=i*120+(roadOffset%120)-200;
+        let h=150+Math.random()*300;
+        ctx.fillStyle="rgba(0,20,40,.9)";
+        ctx.fillRect(x, H-h, 80, h);
+
+        for(let y=H-h+10;y<H-10;y+=25){
+            if(Math.random()>0.6){
+                ctx.fillStyle="#0ff";
+                ctx.fillRect(x+10,y,10,12);
+            }
+        }
     }
-
-    for(let i=0;i<Math.min(level,5);i++){
-        traffic.push({
-            x:Math.random()*380,
-            y:Math.random()*550,
-            s:1+Math.random()*1.5,
-            dir:Math.random()<0.5?-1:1
-        });
-    }
-
-    parking={x:Math.random()*260+80,y:40,w:80,h:60};
-
-    playing=true;
-    document.getElementById("lvl").textContent=level;
-    overlay.classList.remove("show");
 }
 
 function drawCar(){
     ctx.save();
-    ctx.translate(car.x,car.y);
-    ctx.rotate(angle);
-    ctx.fillStyle="#00f7ff";
-    ctx.fillRect(-car.w/2,-car.h/2,car.w,car.h);
+    ctx.translate(W/2,H*0.75);
+    ctx.rotate(car.angle);
+    ctx.fillStyle="#0ff";
+    ctx.shadowBlur=30;
+    ctx.shadowColor="#0ff";
+    ctx.fillRect(-14,-25,28,50);
     ctx.restore();
 }
 
-function update(){
-    if(!playing) return;
-
-    if(keys.up) speed+=0.09;
-    if(keys.down) speed-=0.07;
-    speed*=0.97;
-    speed=Math.max(Math.min(speed,4),-2);
-
-    if(keys.left) angle-=0.06;
-    if(keys.right) angle+=0.06;
-
-    car.x+=Math.sin(angle)*speed;
-    car.y-=Math.cos(angle)*speed;
-
-    car.x=Math.max(15,Math.min(c.width-15,car.x));
-    car.y=Math.max(25,Math.min(c.height-25,car.y));
-
-    traffic.forEach(t=>{
-        t.x+=t.s*t.dir;
-        if(t.x<0||t.x>c.width-40) t.dir*=-1;
+function drawRain(){
+    ctx.strokeStyle="rgba(150,200,255,.35)";
+    ctx.lineWidth=1;
+    rain.forEach(r=>{
+        ctx.beginPath();
+        ctx.moveTo(r.x,r.y);
+        ctx.lineTo(r.x-2,r.y+r.l);
+        ctx.stroke();
+        r.y+=r.s;
+        if(r.y>H){
+            r.y=-20;
+            r.x=Math.random()*W;
+        }
     });
+}
 
-    draw();
-    collisions();
+function update(){
+    if(keys.up) car.speed+=0.05;
+    if(keys.down) car.speed-=0.05;
+    car.speed*=0.98;
+    car.speed=Math.max(Math.min(car.speed,5),-2);
+
+    if(keys.left) car.angle-=0.03;
+    if(keys.right) car.angle+=0.03;
+
+    roadOffset+=car.speed*4;
+
+    drawSky();
+    drawBuildings();
+    drawRoad();
+    drawRain();
+    drawCar();
+
     requestAnimationFrame(update);
 }
 
-function draw(){
-    ctx.clearRect(0,0,c.width,c.height);
-
-    ctx.strokeStyle="#00f7ff";
-    ctx.strokeRect(parking.x,parking.y,parking.w,parking.h);
-    ctx.fillStyle="rgba(0,255,255,.15)";
-    ctx.fillRect(parking.x,parking.y,parking.w,parking.h);
-
-    ctx.fillStyle="#ff00ff";
-    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
-
-    ctx.fillStyle="#ffaa00";
-    traffic.forEach(t=>ctx.fillRect(t.x,t.y,40,20));
-
-    drawCar();
-}
-
-function hit(a,b){
-    return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
-}
-
-function collisions(){
-    let box={x:car.x-car.w/2,y:car.y-car.h/2,w:car.w,h:car.h};
-
-    for(let o of obstacles) if(hit(box,o)) return lose();
-    for(let t of traffic) if(hit(box,{x:t.x,y:t.y,w:40,h:20})) return lose();
-
-    if(box.x>parking.x && box.x+box.w<parking.x+parking.w &&
-       box.y>parking.y && box.y+box.h<parking.y+parking.h &&
-       Math.abs(speed)<0.4){
-        win();
-    }
-}
-
-function win(){
-    playing=false;
-    score+=level*150;
-    document.getElementById("score").textContent=score;
-    if(score>highscore){
-        highscore=score;
-        localStorage.setItem("parking_high",highscore);
-        document.getElementById("high").textContent=highscore;
-    }
-    show("PERFECT GEPAKKEERD 🅿️");
-}
-
-function lose(){
-    playing=false;
-    show("BOTSING 💥");
-}
-
-function show(t){
-    document.getElementById("msg").textContent=t;
-    overlay.classList.add("show");
-}
-
-function next(){
-    level++;
-    start();
-    update();
-}
-
-start();
 update();
 </script>
 
