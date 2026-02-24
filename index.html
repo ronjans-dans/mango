@@ -3,214 +3,150 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ultimate Survival Game</title>
+<title>Online Verhalen Spel</title>
+
 <style>
-html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:system-ui;color:#0f0}
-#hud{
-    position:fixed;top:10px;left:50%;transform:translateX(-50%);
-    display:flex;gap:12px;background:rgba(0,0,0,.6);padding:10px 16px;
-    border-radius:14px;font-size:14px;z-index:10
+body{
+    margin:0;
+    font-family:system-ui,Segoe UI,Arial;
+    background:radial-gradient(circle at top,#090018,#000);
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
 }
-.bar{width:90px;height:10px;background:#222;border-radius:10px;overflow:hidden}
-.fill{height:100%;background:linear-gradient(90deg,#00ffcc,#00ff00)}
-canvas{display:block}
-#inventory{
-    position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
-    background:rgba(0,0,0,.6);padding:12px 16px;border-radius:14px;
-    display:flex;gap:15px;z-index:10;font-size:14px
+
+#app{
+    width:95%;
+    max-width:900px;
+    background:rgba(0,0,0,0.6);
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 0 40px rgba(0,255,255,0.15);
 }
+
+h1{
+    text-align:center;
+    margin-bottom:15px;
+    color:#00ffee;
+}
+
+#story{
+    background:#050505;
+    border-radius:14px;
+    padding:15px;
+    min-height:260px;
+    max-height:420px;
+    overflow-y:auto;
+    font-size:18px;
+    line-height:1.6;
+    box-shadow:inset 0 0 20px rgba(0,255,255,0.1);
+}
+
+.line{
+    margin-bottom:10px;
+    animation:fade .4s ease;
+}
+
+@keyframes fade{
+    from{opacity:0;transform:translateY(6px)}
+    to{opacity:1;transform:translateY(0)}
+}
+
+#controls{
+    display:flex;
+    gap:10px;
+    margin-top:15px;
+}
+
+input{
+    flex:1;
+    padding:12px 14px;
+    border-radius:10px;
+    border:none;
+    outline:none;
+    font-size:16px;
+}
+
 button{
-    border:none;border-radius:10px;padding:8px 14px;
-    background:linear-gradient(90deg,#00ffcc,#00ff00);
-    font-weight:700
+    padding:12px 20px;
+    border:none;
+    border-radius:10px;
+    background:linear-gradient(90deg,#00ffee,#00ff99);
+    font-weight:700;
+    cursor:pointer;
+}
+
+button:hover{
+    filter:brightness(1.1);
+}
+
+#status{
+    text-align:center;
+    font-size:12px;
+    margin-top:6px;
+    opacity:.7;
 }
 </style>
 </head>
+
 <body>
 
-<div id="hud">
-❤️ <div class="bar"><div id="health" class="fill"></div></div>
-🍗 <div class="bar"><div id="hunger" class="fill"></div></div>
-💧 <div class="bar"><div id="thirst" class="fill"></div></div>
-⚡ <div class="bar"><div id="stamina" class="fill"></div></div>
+<div id="app">
+    <h1>🌍 Online Verhalen Spel</h1>
+    <div id="story"></div>
+
+    <div id="controls">
+        <input id="text" placeholder="Schrijf jouw zin..." maxlength="140">
+        <button onclick="send()">Verstuur</button>
+    </div>
+
+    <div id="status">Live multiplayer verbonden</div>
 </div>
 
-<div id="inventory">
-🪵 <span id="wood">0</span>
-🥩 <span id="meat">0</span>
-🪨 <span id="stone">0</span>
-<button onclick="makeFire()">🔥 Vuur</button>
-<button onclick="makeBase()">🏕 Base</button>
-</div>
-
-<canvas id="game"></canvas>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-resize();
-window.addEventListener("resize",resize);
+// 🔧 FIREBASE CONFIG — vervang dit met jouw eigen Firebase keys
+const firebaseConfig = {
+  apiKey: "VUL_HIER_JE_KEY_IN",
+  authDomain: "VUL_HIER_IN.firebaseapp.com",
+  databaseURL: "https://VUL_HIER_IN-default-rtdb.firebaseio.com",
+  projectId: "VUL_HIER_IN",
+  storageBucket: "VUL_HIER_IN.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
 
-let cam={x:0,y:0};
-let player={x:0,y:0,speed:2};
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-let health=100,hunger=100,thirst=100,stamina=100;
-let wood=0,meat=0,stone=0;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const storyRef = ref(db, "story");
 
-const trees=[],animals=[],monsters=[],fires=[],bases=[],rocks=[];
+const story = document.getElementById("story");
+const input = document.getElementById("text");
 
-const world=4000;
-
-for(let i=0;i<250;i++){
- trees.push({x:Math.random()*world,y:Math.random()*world});
- animals.push({x:Math.random()*world,y:Math.random()*world,dir:Math.random()*6});
- monsters.push({x:Math.random()*world,y:Math.random()*world,hp:40});
- rocks.push({x:Math.random()*world,y:Math.random()*world});
+function send(){
+    if(input.value.trim()=="") return;
+    push(storyRef, input.value.trim());
+    input.value="";
 }
 
-const keys={};
-addEventListener("keydown",e=>keys[e.key]=true);
-addEventListener("keyup",e=>keys[e.key]=false);
+input.addEventListener("keydown",e=>{
+    if(e.key==="Enter") send();
+});
 
-function resize(){
- canvas.width=innerWidth;
- canvas.height=innerHeight;
-}
-
-function makeFire(){
- if(wood>=5){
-   wood-=5;
-   fires.push({x:player.x,y:player.y,t:600});
- }
-}
-
-function makeBase(){
- if(wood>=20 && stone>=10){
-   wood-=20;stone-=10;
-   bases.push({x:player.x,y:player.y});
- }
-}
-
-function stats(){
- hunger-=0.006;
- thirst-=0.009;
- stamina-=0.004;
-
- if(hunger<20||thirst<20) health-=0.01;
- if(health<=0){alert("Je bent gestorven 💀");location.reload();}
-
- health=Math.min(100,health);
- stamina=Math.min(100,stamina);
-
- updateUI();
-}
-
-function updateUI(){
- healthBar.style.width=health+"%";
- hungerBar.style.width=hunger+"%";
- thirstBar.style.width=thirst+"%";
- staminaBar.style.width=stamina+"%";
- woodEl.textContent=wood;
- meatEl.textContent=meat;
- stoneEl.textContent=stone;
-}
-
-const healthBar=document.getElementById("health");
-const hungerBar=document.getElementById("hunger");
-const thirstBar=document.getElementById("thirst");
-const staminaBar=document.getElementById("stamina");
-const woodEl=document.getElementById("wood");
-const meatEl=document.getElementById("meat");
-const stoneEl=document.getElementById("stone");
-
-function move(){
- let speed=player.speed*(keys.Shift?1.6:1);
- if(keys.w||keys.ArrowUp) player.y-=speed;
- if(keys.s||keys.ArrowDown) player.y+=speed;
- if(keys.a||keys.ArrowLeft) player.x-=speed;
- if(keys.d||keys.ArrowRight) player.x+=speed;
-}
-
-function collide(){
- trees.forEach((t,i)=>{
-   if(dist(player,t)<20){wood++;trees.splice(i,1);}
- });
- rocks.forEach((r,i)=>{
-   if(dist(player,r)<20){stone++;rocks.splice(i,1);}
- });
- animals.forEach((a,i)=>{
-   if(dist(player,a)<20){meat+=2;animals.splice(i,1);}
- });
- monsters.forEach(m=>{
-   if(dist(player,m)<25){health-=0.1;}
- });
- fires.forEach(f=>{
-   if(dist(player,f)<40){stamina+=0.08;}
- });
-}
-
-function updateEntities(){
- animals.forEach(a=>{
-   a.dir+=Math.random()-.5;
-   a.x+=Math.cos(a.dir);
-   a.y+=Math.sin(a.dir);
- });
-
- monsters.forEach(m=>{
-   const dx=player.x-m.x;
-   const dy=player.y-m.y;
-   const d=Math.hypot(dx,dy);
-   if(d<400){
-     m.x+=dx/d;
-     m.y+=dy/d;
-   }
- });
-}
-
-function draw(){
- ctx.clearRect(0,0,canvas.width,canvas.height);
- cam.x=player.x-canvas.width/2;
- cam.y=player.y-canvas.height/2;
-
- ctx.fillStyle="#021";
- ctx.fillRect(0,0,canvas.width,canvas.height);
-
- drawArr(trees,"#0f0",8);
- drawArr(rocks,"#888",6);
- drawArr(animals,"#ff0",6);
- drawArr(monsters,"#f00",10);
- drawArr(fires,"#f80",14);
- drawArr(bases,"#0ff",18);
-
- ctx.fillStyle="#0ff";
- drawCircle(player.x,player.y,10);
-}
-
-function drawArr(arr,color,size){
- ctx.fillStyle=color;
- arr.forEach(o=>drawCircle(o.x,o.y,size));
-}
-
-function drawCircle(x,y,r){
- ctx.beginPath();
- ctx.arc(x-cam.x,y-cam.y,r,0,Math.PI*2);
- ctx.fill();
-}
-
-function dist(a,b){
- return Math.hypot(a.x-b.x,a.y-b.y);
-}
-
-function loop(){
- move();
- collide();
- updateEntities();
- stats();
- draw();
- requestAnimationFrame(loop);
-}
-
-loop();
+onChildAdded(storyRef,snap=>{
+    const div=document.createElement("div");
+    div.className="line";
+    div.textContent=snap.val();
+    story.appendChild(div);
+    story.scrollTop=story.scrollHeight;
+});
 </script>
 
 </body>
