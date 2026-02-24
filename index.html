@@ -2,150 +2,198 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Gravity Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survival Simulator</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui;}
 body{
-    background:radial-gradient(circle at top,#050914,#000);
-    overflow:hidden;
+    background:radial-gradient(circle at top,#041014,#000);
     color:white;
+    overflow:hidden;
 }
-canvas{
-    display:block;
-    margin:0 auto;
-    background:linear-gradient(#050914,#02040a);
-}
+
 #hud{
     position:fixed;
     top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:20px;
+    font-size:14px;
+    z-index:5;
+}
+
+.bar{
+    width:120px;
+    height:14px;
+    background:#222;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.fill{
+    height:100%;
+    background:linear-gradient(90deg,#00f7ff,#00ff99);
+}
+
+canvas{
+    display:block;
+    margin:0 auto;
+    background:#0a140a;
+}
+
+#controls{
+    position:fixed;
+    bottom:10px;
     width:100%;
-    text-align:center;
-    font-size:18px;
-    letter-spacing:2px;
-    color:#7ff;
+    display:flex;
+    justify-content:center;
+    gap:10px;
+}
+
+button{
+    padding:12px 18px;
+    border:none;
+    border-radius:10px;
+    background:linear-gradient(90deg,#00f7ff,#00ff99);
+    font-weight:700;
 }
 </style>
 </head>
 
 <body>
 
-<div id="hud">🎯 GRAVITY LAB — Kantel om de bal te bewegen</div>
-<canvas id="game"></canvas>
+<div id="hud">
+    🍗 <div class="bar"><div id="hunger" class="fill"></div></div>
+    💧 <div class="bar"><div id="thirst" class="fill"></div></div>
+    ⚡ <div class="bar"><div id="energy" class="fill"></div></div>
+    🪵 <span id="wood">0</span>
+</div>
+
+<canvas id="game" width="900" height="600"></canvas>
+
+<div id="controls">
+    <button ontouchstart="keys.left=true" ontouchend="keys.left=false">⬅</button>
+    <button ontouchstart="keys.up=true" ontouchend="keys.up=false">⬆</button>
+    <button ontouchstart="keys.down=true" ontouchend="keys.down=false">⬇</button>
+    <button ontouchstart="keys.right=true" ontouchend="keys.right=false">➡</button>
+    <button onclick="buildFire()">🔥 VUUR</button>
+</div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const c = document.getElementById("game");
+const ctx = c.getContext("2d");
 
-let W,H;
-function resize(){
-    W=canvas.width=window.innerWidth;
-    H=canvas.height=window.innerHeight;
-}
-window.addEventListener("resize",resize);
-resize();
+let player={x:450,y:300,s:3};
+let hunger=100, thirst=100, energy=100, wood=0;
+let trees=[];
+let food=[];
+let fires=[];
 
-let tilt=0;
-let gravity=0.3;
-
-const ball={
-    x:W/2,
-    y:80,
-    r:14,
-    vx:0,
-    vy:0
-};
-
-let platforms=[];
-let goal={x:W/2,y:H-80,r:20};
-
-function createLevel(){
-    platforms=[];
-    let y=140;
-    for(let i=0;i<9;i++){
-        platforms.push({
-            x:Math.random()*(W-200)+100,
-            y:y,
-            w:200,
-            h:14
-        });
-        y+=70;
-    }
-}
-createLevel();
+const keys={left:false,right:false,up:false,down:false};
 
 document.addEventListener("keydown",e=>{
-    if(e.key==="ArrowLeft") tilt=-0.5;
-    if(e.key==="ArrowRight") tilt=0.5;
+    if(e.key.includes("Arrow")) keys[e.key.replace("Arrow","").toLowerCase()]=true;
 });
-document.addEventListener("keyup",()=>tilt=0);
+document.addEventListener("keyup",e=>{
+    if(e.key.includes("Arrow")) keys[e.key.replace("Arrow","").toLowerCase()]=false;
+});
 
-window.addEventListener("deviceorientation",e=>{
-    if(e.gamma!==null){
-        tilt=e.gamma/40;
+for(let i=0;i<40;i++){
+    trees.push({x:Math.random()*900,y:Math.random()*600});
+    food.push({x:Math.random()*900,y:Math.random()*600});
+}
+
+function buildFire(){
+    if(wood>=5){
+        wood-=5;
+        fires.push({x:player.x,y:player.y,t:500});
     }
-});
+}
+
+function updateStats(){
+    hunger-=0.01;
+    thirst-=0.015;
+    energy-=0.005;
+
+    if(hunger<0||thirst<0||energy<0){
+        alert("Je bent overleden 😵");
+        location.reload();
+    }
+
+    document.getElementById("hunger").style.width=hunger+"%";
+    document.getElementById("thirst").style.width=thirst+"%";
+    document.getElementById("energy").style.width=energy+"%";
+    document.getElementById("wood").textContent=wood;
+}
 
 function update(){
-    ball.vx+=tilt;
-    ball.vy+=gravity;
+    if(keys.left) player.x-=player.s;
+    if(keys.right) player.x+=player.s;
+    if(keys.up) player.y-=player.s;
+    if(keys.down) player.y+=player.s;
 
-    ball.vx*=0.995;
-    ball.vy*=0.995;
+    player.x=Math.max(10,Math.min(890,player.x));
+    player.y=Math.max(10,Math.min(590,player.y));
 
-    ball.x+=ball.vx;
-    ball.y+=ball.vy;
-
-    if(ball.x<ball.r){ball.x=ball.r;ball.vx*=-0.6;}
-    if(ball.x>W-ball.r){ball.x=W-ball.r;ball.vx*=-0.6;}
-
-    platforms.forEach(p=>{
-        if(ball.x>p.x && ball.x<p.x+p.w &&
-           ball.y+ball.r>p.y && ball.y+ball.r<p.y+p.h+ball.vy){
-            ball.y=p.y-ball.r;
-            ball.vy*=-0.4;
+    trees.forEach((t,i)=>{
+        if(Math.hypot(player.x-t.x,player.y-t.y)<20){
+            wood++;
+            trees.splice(i,1);
         }
     });
 
+    food.forEach((f,i)=>{
+        if(Math.hypot(player.x-f.x,player.y-f.y)<20){
+            hunger=Math.min(100,hunger+25);
+            thirst=Math.min(100,thirst+15);
+            food.splice(i,1);
+        }
+    });
+
+    fires.forEach((f,i)=>{
+        f.t--;
+        energy=Math.min(100,energy+0.03);
+        if(f.t<=0) fires.splice(i,1);
+    });
+
     draw();
+    updateStats();
     requestAnimationFrame(update);
 }
 
 function draw(){
-    ctx.clearRect(0,0,W,H);
+    ctx.clearRect(0,0,900,600);
 
-    ctx.fillStyle="#00f7ff";
-    ctx.shadowBlur=20;
-    ctx.shadowColor="#00f7ff";
-    ctx.beginPath();
-    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-    ctx.fill();
+    ctx.fillStyle="#0c1a0c";
+    ctx.fillRect(0,0,900,600);
 
-    ctx.shadowBlur=0;
-    ctx.fillStyle="#0ff";
-    platforms.forEach(p=>{
-        ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.fillStyle="#00ff00";
+    trees.forEach(t=>{
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,8,0,Math.PI*2);
+        ctx.fill();
     });
 
-    ctx.strokeStyle="#ff00ff";
-    ctx.lineWidth=3;
+    ctx.fillStyle="#ffcc00";
+    food.forEach(f=>{
+        ctx.beginPath();
+        ctx.arc(f.x,f.y,6,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    fires.forEach(f=>{
+        ctx.fillStyle="#ff6600";
+        ctx.beginPath();
+        ctx.arc(f.x,f.y,12,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    ctx.fillStyle="#00f7ff";
     ctx.beginPath();
-    ctx.arc(goal.x,goal.y,goal.r,0,Math.PI*2);
-    ctx.stroke();
-
-    let dx=ball.x-goal.x;
-    let dy=ball.y-goal.y;
-    if(Math.hypot(dx,dy)<goal.r){
-        nextLevel();
-    }
-}
-
-function nextLevel(){
-    ball.x=W/2;
-    ball.y=60;
-    ball.vx=ball.vy=0;
-    createLevel();
+    ctx.arc(player.x,player.y,10,0,Math.PI*2);
+    ctx.fill();
 }
 
 update();
